@@ -1,0 +1,96 @@
+name: build
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install gcc-mingw-w64-x86-64 gcc-mingw-w64-i686
+          rustup target add x86_64-pc-windows-gnu
+          rustup target add i686-pc-windows-gnu
+          rustup target add x86_64-unknown-linux-gnu
+          rustup target add x86_64-apple-darwin
+
+          mkdir dist
+          mkdir builds
+
+      - name: Build Win64
+        run: |
+          cargo rustc --bin ramilang --release --target=x86_64-pc-windows-gnu -- -C linker=x86_64-w64-mingw32-gcc
+          mkdir builds/ramilang-win64
+          cp target/x86_64-pc-windows-gnu/release/ramilang.exe builds/ramilang-win64
+          tar -C builds -czvf dist/ramilang-win64.tar.gz ramilang-win64
+
+      - name: Build Win32
+        run: |
+          cargo rustc --bin ramilang --release --target=i686-pc-windows-gnu -- -C linker=i686-w64-mingw32-gcc -C link-args=-mwindows -C panic=abort
+          mkdir builds/ramilang-win32
+          cp target/i686-pc-windows-gnu/release/ramilang.exe builds/ramilang-win32
+          tar -C builds -czvf dist/ramilang-win32.tar.gz ramilang-win32
+
+      - name: Build Linux
+        run: |
+          cargo rustc --bin ramilang --release --target=x86_64-unknown-linux-gnu
+          mkdir builds/ramilang-linux
+          cp target/x86_64-unknown-linux-gnu/release/ramilang builds/ramilang-linux
+          tar -C builds -czvf dist/ramilang-linux.tar.gz ramilang-linux
+
+      - name: Cache Mac OS dependencies
+        id: cache-macos
+        uses: actions/cache@v1
+        with:
+          path: osxcross
+          key: ${{ runner.os }}-osxcross
+
+      - name: Install Mac OS dependencies
+        if: steps.cache-macos.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/tpoechtrager/osxcross
+          cd osxcross
+          sudo tools/get_dependencies.sh
+          wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.10.sdk.tar.xz
+          mv MacOSX10.10.sdk.tar.xz tarballs/
+          UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
+
+      - name: Build Mac OS
+        run: |
+          export PATH="$(pwd)/osxcross/target/bin:$PATH"
+          export LIBZ_SYS_STATIC=1
+          export CC=o64-clang
+          export CXX=o64-clang++
+          cargo build --release --target "x86_64-apple-darwin"
+          mkdir builds/ramilang-macos
+          cp target/x86_64-apple-darwin/release/ramilang builds/ramilang-macos
+          tar -C builds -czvf dist/ramilang-macos.tar.gz ramilang-macos
+
+      - name: Upload release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.md
+          files: |
+            dist/ramilang-win64.tar.gz
+            dist/ramilang-win32.tar.gz
+            dist/ramilang-linux.tar.gz
+            dist/ramilang-macos.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish npm package
+        env:
+          NPM_ACCESS_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=$NPM_ACCESS_TOKEN" > ".npmrc"
+          npm publish
