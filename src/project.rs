@@ -61,8 +61,8 @@ fn extract_include(input: &str) -> IResult<&str, String> {
     Ok((input, path.to_string()))
 }
 
-fn extract_includes(input: &Path) -> Vec<String> {
-    let input = std::fs::read_to_string(input).unwrap();
+fn extract_includes(project_path: &Path) -> Vec<String> {
+    let input = std::fs::read_to_string(project_path).unwrap();
 
     let mut includes = Vec::new();
     for line in input.lines() {
@@ -71,7 +71,23 @@ fn extract_includes(input: &Path) -> Vec<String> {
         }
     }
 
-    includes
+    let mut resolved_paths = Vec::new();
+    for include in includes {
+        let mut path = project_path.to_path_buf();
+        path.pop(); // pop from file to directory
+        let components: Vec<&str> = include.split('\\').collect();
+        for component in components {
+            if component == ".." {
+                path.pop();
+            } else {
+                path.push(component);
+            }
+        }
+
+        resolved_paths.push(path.to_str().unwrap().to_string());
+    }
+
+    resolved_paths
 }
 
 #[cfg(test)]

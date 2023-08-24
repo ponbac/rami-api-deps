@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use console::style;
 use rami_api_deps::project::Project;
 use walkdir::{DirEntry, WalkDir};
 
