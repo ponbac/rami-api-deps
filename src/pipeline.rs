@@ -48,23 +48,39 @@ impl Pipeline {
 fn extract_projects(path: &Path) -> Vec<Project> {
     let pipeline_contents = std::fs::read_to_string(path).unwrap();
 
-    // Grab everything before SE-CustomerPortal
-    let base_path = "C:\\Users\\pbac\\Dev\\ramirent\\SE-CustomerPortal";
+    let mut base_path = PathBuf::new();
+    let parts = path.components().collect::<Vec<_>>();
+    for part in parts {
+        if part.as_os_str() == "SE-CustomerPortal" {
+            base_path.push(part.as_os_str());
+            break;
+        }
+
+        base_path.push(part.as_os_str());
+    }
+
     let mut projects = Vec::new();
     for line in pipeline_contents.lines() {
-        if let Ok((_, project_path)) = extract_project_path(line, "csproj") {
-            let combined_path = format!("{}\\{}", base_path, project_path);
-            projects.push(Project::new(PathBuf::from(combined_path)));
+        if let Ok((_, project_path)) = extract_project_path(line, "csproj", "\"") {
+            let combined_path = base_path.join(project_path);
+            projects.push(Project::new(combined_path));
+        } else if let Ok((_, project_path)) = extract_project_path(line, "csproj", "'") {
+            let combined_path = base_path.join(project_path);
+            projects.push(Project::new(combined_path));
         }
     }
 
     projects
 }
 
-fn extract_project_path<'a>(input: &'a str, project_extension: &str) -> IResult<&'a str, String> {
-    let (input, _) = take_until("\"")(input)?;
+fn extract_project_path<'a>(
+    input: &'a str,
+    project_extension: &str,
+    fence_char: &'a str,
+) -> IResult<&'a str, String> {
+    let (input, _) = take_until(fence_char)(input)?;
 
-    let (input, path) = fenced("\"", "\"")(input)?;
+    let (input, path) = fenced(fence_char, fence_char)(input)?;
 
     match PathBuf::from(path).extension() {
         Some(extension) if extension == project_extension => Ok((input, path.to_string())),
@@ -233,7 +249,7 @@ stages:
 
         let mut projects = Vec::new();
         for line in input.lines() {
-            if let Ok((_, include)) = extract_project_path(line, "csproj") {
+            if let Ok((_, include)) = extract_project_path(line, "csproj", "\"") {
                 projects.push(include);
             }
         }
