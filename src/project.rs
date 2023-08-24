@@ -62,7 +62,8 @@ fn extract_include(input: &str) -> IResult<&str, String> {
 }
 
 fn extract_includes(project_path: &Path) -> Vec<String> {
-    let input = std::fs::read_to_string(project_path).unwrap();
+    let input = std::fs::read_to_string(project_path)
+        .unwrap_or_else(|_| panic!("Failed to read project file at {}", project_path.display()));
 
     let mut includes = Vec::new();
     for line in input.lines() {
