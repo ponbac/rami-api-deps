@@ -12,7 +12,7 @@ pub struct ProjectReference {
 
 #[derive(Debug, Clone)]
 pub struct Project {
-    path: PathBuf,
+    pub path: PathBuf,
     project_references: Vec<ProjectReference>,
 }
 
@@ -31,7 +31,7 @@ impl Project {
 
     pub fn pretty_print(&self) {
         println!(
-            "Project {}, {} refs:",
+            "Project {}, {} deps:",
             style(self.path.display()).cyan().italic(),
             style(self.project_references.len()).yellow().bold()
         );

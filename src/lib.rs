@@ -5,6 +5,7 @@ use nom::{
     IResult,
 };
 
+pub mod pipeline;
 pub mod project;
 
 fn fenced<'a>(start: &'a str, end: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
