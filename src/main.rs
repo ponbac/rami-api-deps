@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use console::style;
+use rami_api_deps::project::Project;
 use walkdir::{DirEntry, WalkDir};
 
 /// Generate dependency things!
@@ -24,16 +25,11 @@ fn main() {
         // Only include .csproj files
         .filter(is_csproj_file);
 
-    for (i, entry) in walker.enumerate() {
-        let path = entry.path();
-        if path.is_file() {
-            println!(
-                "{}{}: {}",
-                style("file ").bold(),
-                style(i).bold().cyan(),
-                style(path.display()).dim().italic()
-            );
-        }
+    for entry in walker {
+        let project = Project::new(entry.path().to_path_buf());
+
+        project.pretty_print();
+        println!();
     }
 }
 
