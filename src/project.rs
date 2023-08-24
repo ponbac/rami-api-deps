@@ -10,6 +10,7 @@ pub struct ProjectReference {
     include: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct Project {
     path: PathBuf,
     project_references: Vec<ProjectReference>,
@@ -17,7 +18,7 @@ pub struct Project {
 
 impl Project {
     pub fn new(path: PathBuf) -> Self {
-        let includes = Self::extract_includes(&path);
+        let includes = extract_includes(&path);
 
         Self {
             path,
@@ -26,10 +27,6 @@ impl Project {
                 .map(|include| ProjectReference { include })
                 .collect(),
         }
-    }
-
-    pub fn add_project_reference(&mut self, project_reference: ProjectReference) {
-        self.project_references.push(project_reference);
     }
 
     pub fn pretty_print(&self) {
@@ -51,23 +48,6 @@ impl Project {
                 );
             });
     }
-
-    pub fn path(&self) -> &PathBuf {
-        &self.path
-    }
-
-    fn extract_includes(input: &Path) -> Vec<String> {
-        let input = std::fs::read_to_string(input).unwrap();
-
-        let mut includes = Vec::new();
-        for line in input.lines() {
-            if let Ok((_, include)) = extract_include(line) {
-                includes.push(include);
-            }
-        }
-
-        includes
-    }
 }
 
 fn extract_include(input: &str) -> IResult<&str, String> {
@@ -79,6 +59,19 @@ fn extract_include(input: &str) -> IResult<&str, String> {
     let (input, path) = fenced("\"", "\"")(input)?;
 
     Ok((input, path.to_string()))
+}
+
+fn extract_includes(input: &Path) -> Vec<String> {
+    let input = std::fs::read_to_string(input).unwrap();
+
+    let mut includes = Vec::new();
+    for line in input.lines() {
+        if let Ok((_, include)) = extract_include(line) {
+            includes.push(include);
+        }
+    }
+
+    includes
 }
 
 #[cfg(test)]
@@ -127,10 +120,20 @@ mod tests {
         </Project>
         "#;
 
+        let mut includes = Vec::new();
         for line in input.lines() {
             if let Ok((_, include)) = extract_include(line) {
-                println!("{}", include);
+                includes.push(include);
             }
         }
+
+        assert_eq!(
+            includes,
+            vec![
+                r#"..\..\SharedLibraries\Shared.Api.ServiceBus\Shared.Api.ServiceBus.csproj"#,
+                r#"..\..\SharedLibraries\Shared.Infrastructure\Shared.Infrastructure.csproj"#,
+                r#"..\WashingMachine\WashingMachine\WashingMachine.csproj"#
+            ]
+        );
     }
 }
