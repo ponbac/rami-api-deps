@@ -42,7 +42,7 @@ impl Project {
             .enumerate()
             .for_each(|(i, project_reference)| {
                 println!(
-                    "    {}: {}",
+                    "        {}: {}",
                     style(i + 1).bold(),
                     style(&project_reference.include).dim()
                 );

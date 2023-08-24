@@ -39,6 +39,7 @@ impl Pipeline {
         );
 
         self.projects.clone().into_iter().for_each(|project| {
+            print!("    ");
             project.pretty_print();
         });
     }
