@@ -1,19 +1,23 @@
 use std::path::{Path, PathBuf};
 
 use console::style;
-use nom::{bytes::complete::tag, character::complete::multispace0, IResult};
+use nom::{
+    bytes::complete::{tag, take_until},
+    character::complete::multispace0,
+    IResult,
+};
 
 use crate::fenced;
 
 #[derive(Debug, Clone)]
 pub struct ProjectReference {
-    include: String,
+    pub include_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
 pub struct Project {
     pub path: PathBuf,
-    project_references: Vec<ProjectReference>,
+    pub references: Vec<ProjectReference>,
 }
 
 impl Project {
@@ -22,21 +26,40 @@ impl Project {
 
         Self {
             path,
-            project_references: includes
+            references: includes
                 .into_iter()
-                .map(|include| ProjectReference { include })
+                .map(|include| ProjectReference {
+                    include_path: include,
+                })
                 .collect(),
         }
+    }
+
+    pub fn azure_path_filter(&self) -> String {
+        let path = self.path.to_str().unwrap();
+        let (input, _) = take_until::<_, _, ()>("SE-CustomerPortal")(path).unwrap();
+        let (base_path, _) = tag::<_, _, ()>("SE-CustomerPortal")(input).unwrap();
+
+        // replace the file name with a wildcard
+        PathBuf::from(base_path)
+            .parent()
+            .unwrap()
+            .join("*")
+            .to_str()
+            .unwrap()
+            .replace('\\', "/")
+            .to_string()
+            + ";"
     }
 
     pub fn pretty_print(&self) {
         println!(
             "Project {}, {} deps:",
             style(self.path.display()).cyan().italic(),
-            style(self.project_references.len()).yellow().bold()
+            style(self.references.len()).yellow().bold()
         );
 
-        self.project_references
+        self.references
             .clone()
             .into_iter()
             .enumerate()
@@ -44,7 +67,7 @@ impl Project {
                 println!(
                     "        {}: {}",
                     style(i + 1).bold(),
-                    style(&project_reference.include).dim()
+                    style(&project_reference.include_path.display()).dim()
                 );
             });
     }
@@ -61,12 +84,17 @@ fn extract_include(input: &str) -> IResult<&str, String> {
     Ok((input, path.to_string()))
 }
 
-fn extract_includes(project_path: &Path) -> Vec<String> {
+fn extract_includes(project_path: &Path) -> Vec<PathBuf> {
     let input = std::fs::read_to_string(project_path)
         .unwrap_or_else(|_| panic!("Failed to read project file at {}", project_path.display()));
 
     let mut includes = Vec::new();
     for line in input.lines() {
+        // We don't care about the tests!
+        if line.contains("Tests.csproj") || line.contains("Test.csproj") || line.contains(".Test") {
+            continue;
+        }
+
         if let Ok((_, include)) = extract_include(line) {
             includes.push(include);
         }
@@ -85,7 +113,7 @@ fn extract_includes(project_path: &Path) -> Vec<String> {
             }
         }
 
-        resolved_paths.push(path.to_str().unwrap().to_string());
+        resolved_paths.push(path);
     }
 
     resolved_paths

@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 
 use console::style;
 use nom::{bytes::complete::take_until, IResult};
@@ -31,6 +34,22 @@ impl Pipeline {
         }
     }
 
+    pub fn complete_path_filter(&self) -> String {
+        let mut dependencies = HashSet::new();
+        for project in &self.projects {
+            dependencies.insert(project.azure_path_filter());
+
+            let related_projects = deep_search_for_projects(project);
+            for project in related_projects {
+                dependencies.insert(project.azure_path_filter());
+            }
+        }
+
+        let mut dependencies = dependencies.into_iter().collect::<Vec<_>>();
+        dependencies.sort();
+        dependencies.into_iter().collect::<Vec<_>>().join(" ")
+    }
+
     pub fn pretty_print(&self) {
         println!(
             "Pipeline {}, {} projects:",
@@ -42,6 +61,11 @@ impl Pipeline {
             print!("    ");
             project.pretty_print();
         });
+
+        println!(
+            "    Path filter: {}",
+            style(self.complete_path_filter()).cyan().italic()
+        );
     }
 }
 
@@ -61,6 +85,11 @@ fn extract_projects(path: &Path) -> Vec<Project> {
 
     let mut projects = Vec::new();
     for line in pipeline_contents.lines() {
+        // We don't care about the tests!
+        if line.contains("Tests.csproj") || line.contains("Test.csproj") || line.contains(".Test") {
+            continue;
+        }
+
         if let Ok((_, project_path)) = extract_project_path(line, "csproj", "\"") {
             let combined_path = base_path.join(project_path);
             projects.push(Project::new(combined_path));
@@ -89,6 +118,21 @@ fn extract_project_path<'a>(
             nom::error::ErrorKind::Tag,
         ))),
     }
+}
+
+fn deep_search_for_projects(project: &Project) -> Vec<Project> {
+    let mut projects = Vec::new();
+
+    for reference in &project.references {
+        let mut path = project.path.to_path_buf();
+        path.pop(); // pop from file to directory
+        path.push(&reference.include_path);
+
+        let project = Project::new(path);
+        projects.push(project);
+    }
+
+    projects
 }
 
 #[cfg(test)]
