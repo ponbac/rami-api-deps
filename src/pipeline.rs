@@ -43,6 +43,11 @@ impl Pipeline {
             for project in related_projects {
                 dependencies.insert(project.azure_path_filter());
             }
+
+            // Special case for CustomerPortal due to the mean frontend!
+            if self.name == "CustomerPortal" {
+                dependencies.insert("/CustomerPortal/*;".to_string());
+            }
         }
 
         let mut dependencies = dependencies.into_iter().collect::<Vec<_>>();

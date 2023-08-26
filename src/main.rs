@@ -56,8 +56,8 @@ fn main() {
     );
     for pipeline in pipelines {
         let output_dir = pipeline.path.parent().unwrap();
-
         let file = output_dir.join(".azure-pathfilter");
+
         std::fs::write(file, pipeline.complete_path_filter()).unwrap();
     }
     println!(
