@@ -58,7 +58,12 @@ fn main() {
         let output_dir = pipeline.path.parent().unwrap();
         let file = output_dir.join(".azure-pathfilter");
 
-        std::fs::write(file, pipeline.complete_path_filter()).unwrap();
+        let mut path_filter = pipeline.complete_path_filter();
+        if pipeline.name == "CustomerPortal" {
+            path_filter = format!("/CustomerPortal/*; {}", path_filter);
+        }
+
+        std::fs::write(file, path_filter).unwrap();
     }
     println!(
         "{} {}",

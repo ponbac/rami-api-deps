@@ -44,9 +44,9 @@ impl Pipeline {
                 dependencies.insert(project.azure_path_filter());
             }
 
-            // Special case for CustomerPortal due to the mean frontend!
+            // Special cases for CustomerPortal due to the mean frontend!
             if self.name == "CustomerPortal" {
-                dependencies.insert("/CustomerPortal/*;".to_string());
+                dependencies.insert("!/CustomerPortal/apis/modules/*;".to_string());
             }
         }
 
