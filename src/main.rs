@@ -19,9 +19,9 @@ fn main() {
     let args = Args::parse();
 
     // cwd + root_dir
-    let root_dir = std::env::current_dir().unwrap().join(&args.root_dir);
+    let root_dir = std::env::current_dir().unwrap().join(args.root_dir);
 
-    let pipeline_walker = WalkDir::new(&root_dir)
+    let pipeline_walker = WalkDir::new(root_dir)
         .into_iter()
         // Filter out any non-accessible files
         .filter_map(|e| e.ok())
@@ -33,9 +33,34 @@ fn main() {
         let pipeline = Pipeline::new(entry.path().to_path_buf());
 
         println!(
-            "Pipeline {}, includes {} projects.",
+            "Pipeline {}, includes {} project{}.",
             style(&pipeline.name).green().italic().bold(),
-            style(&pipeline.projects.len()).yellow().bold()
+            style(&pipeline.projects.len()).yellow().bold(),
+            if pipeline.projects.len() == 1 {
+                ""
+            } else {
+                "s"
+            }
+        );
+        println!(
+            "Projects: {}",
+            style(
+                pipeline
+                    .projects
+                    .iter()
+                    // .map(|p| p
+                    //     .path
+                    //     .file_name()
+                    //     .unwrap()
+                    //     .to_str()
+                    //     .unwrap()
+                    //     .trim_end_matches(".csproj"))
+                    .map(|p| p.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+            .magenta()
+            .bold()
         );
         println!(
             "Path filter: {}",

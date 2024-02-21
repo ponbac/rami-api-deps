@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::{Display, Formatter},
+    path::{Path, PathBuf},
+};
 
 use console::style;
 use nom::{
@@ -18,6 +21,47 @@ pub struct ProjectReference {
 pub struct Project {
     pub path: PathBuf,
     pub references: Vec<ProjectReference>,
+}
+
+impl Display for Project {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "\n    {}, {} deps:",
+            style(project_name_from_path(&self.path)).cyan().italic(),
+            style(self.references.len()).yellow().bold()
+        )?;
+
+        self.references
+            .clone()
+            .into_iter()
+            .enumerate()
+            .for_each(|(i, project_reference)| {
+                write!(
+                    f,
+                    "        {}: {}{}",
+                    style(i + 1).bold(),
+                    style(project_name_from_path(&project_reference.include_path)).dim(),
+                    if i < self.references.len() - 1 {
+                        "\n"
+                    } else {
+                        ""
+                    }
+                )
+                .unwrap();
+            });
+
+        Ok(())
+    }
+}
+
+fn project_name_from_path(path: &Path) -> String {
+    path.file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .trim_end_matches(".csproj")
+        .to_string()
 }
 
 impl Project {
