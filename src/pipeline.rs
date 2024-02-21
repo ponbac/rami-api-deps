@@ -126,6 +126,10 @@ fn extract_project_path<'a>(
 }
 
 fn deep_search_for_projects(project: &Project) -> Vec<Project> {
+    if project.references.is_empty() {
+        return Vec::new();
+    }
+
     let mut projects = Vec::new();
 
     for reference in &project.references {
@@ -134,7 +138,17 @@ fn deep_search_for_projects(project: &Project) -> Vec<Project> {
         path.push(&reference.include_path);
 
         let project = Project::new(path);
-        projects.push(project);
+        projects.push(project.clone());
+        if reference
+            .include_path
+            .to_str()
+            .unwrap()
+            .contains("Notification")
+        {
+            println!("Found Notification project: {:?}", project.path);
+        }
+        let related_projects = deep_search_for_projects(&project);
+        projects.extend(related_projects);
     }
 
     projects
